@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (2026-10-01)
+
+- Keep query controls and filters on fewer rows in narrow Explore and panel editors.
+
 ## 0.2.0 (2026-10-01)
 
 - Single, multiple and all-zone defaults/queries, zone-labeled graphs, and multi-value zone variables.

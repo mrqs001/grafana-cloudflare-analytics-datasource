@@ -26,11 +26,11 @@ const layout = css`
     gap: 12px;
   }
   .cf-wide {
-    flex: 2 1 280px;
+    flex: 2 1 220px;
     min-width: 0;
   }
   .cf-medium {
-    flex: 1 1 190px;
+    flex: 1 1 160px;
     min-width: 0;
   }
   .cf-small {
@@ -42,6 +42,12 @@ const layout = css`
     align-items: end;
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .cf-filter .cf-medium {
+    flex-basis: 140px;
+  }
+  .cf-filter .cf-wide {
+    flex-basis: 180px;
   }
   .cf-actions {
     display: flex;
