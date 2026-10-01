@@ -12,6 +12,25 @@ origin requests**.
 Requires Grafana **13.2.3+**. Apache-2.0 licensed. Independent community project,
 not affiliated with Cloudflare or Grafana Labs.
 
+## Example dashboards
+
+Two importable dashboards are included. Choose your Cloudflare datasource and
+one, several, or all zones after importing:
+
+- [HTTP traffic overview](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/src/dashboards/overview.json): request volume, bandwidth, status codes, cache status, top hosts, colos, and paths.
+- [Edge vs origin comparison](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/src/dashboards/origin-comparison.json): compare Cloudflare traffic with your own Nginx query from Prometheus or Loki in the mixed-datasource panel.
+
+**The previews below use entirely synthetic traffic and fictional domains.**
+Nginx is simulated for illustration; this plugin does not collect Nginx metrics.
+No real zone names, account details, or credentials appear in these images.
+
+![HTTP overview with synthetic traffic for shop.example.com and api.example.com](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/overview-demo.jpg)
+
+![Simulated Cloudflare edge and Nginx origin traffic comparison](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/origin-comparison-demo.jpg)
+
+To reproduce the previews without a Cloudflare token, see the
+[isolated screenshot demo](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/screenshots.md).
+
 ## Try it locally
 
 Install Docker with Compose v2.24.4+ (or Compose v5), then:

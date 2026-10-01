@@ -1,0 +1,22 @@
+# Screenshot-only demo. No plugin credentials, Cloudflare connection or live data.
+name: cloudflare-analytics-demo
+services:
+  grafana-demo:
+    image: grafana/grafana:13.2.3
+    ports:
+      - '127.0.0.1:3301:3000'
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+      GF_SECURITY_ADMIN_PASSWORD: screenshot-demo-only
+    volumes:
+      - ./.local/demo/provisioning:/etc/grafana/provisioning:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:3000/api/health']
+      interval: 2s
+      timeout: 3s
+      retries: 30
