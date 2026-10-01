@@ -1,20 +1,39 @@
 import { DataSourceInstanceSettings, CoreApp, ScopedVars, MetricFindValue } from '@grafana/data';
 import { DataSourceWithBackend, getTemplateSrv } from '@grafana/runtime';
-import { CloudflareQuery, CloudflareOptions, DEFAULT_QUERY, Zone, DatasetSettings, Account, DIMENSIONS } from './types';
+import {
+  ZoneMode,
+  CloudflareQuery,
+  CloudflareOptions,
+  DEFAULT_QUERY,
+  Zone,
+  DatasetSettings,
+  Account,
+  DIMENSIONS,
+} from './types';
 
 export function expandValues(values: string[], scopedVars: ScopedVars): string[] {
   return values.flatMap((text) => {
     // A whole variable may expand into many exact values, preserving commas and quotes.
     if (/^(\$[a-zA-Z_][\w]*|\$\{[a-zA-Z_][\w]*\})$/.test(text)) {
       const result: string[] = [];
-      getTemplateSrv().replace(text, scopedVars, (value: string | string[]) => {
+      const replaced = getTemplateSrv().replace(text, scopedVars, (value: string | string[]) => {
         result.push(...(Array.isArray(value) ? value : [value]));
         return '';
       });
-      return result.length ? result : [text];
+      // Custom All values can bypass Grafana's formatter callback.
+      return result.length ? result : [replaced || text];
     }
     return [getTemplateSrv().replace(text, scopedVars, 'raw')];
   });
+}
+export function zoneSelection(query: Partial<CloudflareQuery>): { mode: ZoneMode; ids: string[] } {
+  const ids = query.zoneIds?.length ? query.zoneIds : query.zoneId ? [query.zoneId] : [];
+  return { mode: query.zoneMode ?? (ids.length ? 'selected' : 'default'), ids };
+}
+export function resolveZoneVariables(query: CloudflareQuery, scopedVars: ScopedVars): Partial<CloudflareQuery> {
+  const selection = zoneSelection(query);
+  const ids = selection.mode === 'selected' ? [...new Set(expandValues(selection.ids, scopedVars))] : [];
+  return { zoneId: '', zoneMode: ids.includes('*') ? 'all' : selection.mode, zoneIds: ids.includes('*') ? [] : ids };
 }
 export class DataSource extends DataSourceWithBackend<CloudflareQuery, CloudflareOptions> {
   readonly defaultZoneId: string;
@@ -25,14 +44,15 @@ export class DataSource extends DataSourceWithBackend<CloudflareQuery, Cloudflar
   getDefaultQuery(_: CoreApp): Partial<CloudflareQuery> {
     return {
       ...DEFAULT_QUERY,
-      zoneId: this.defaultZoneId,
+      zoneMode: 'default',
+      zoneIds: [],
       filters: DEFAULT_QUERY.filters.map((f) => ({ ...f, values: [...f.values] })),
     };
   }
   applyTemplateVariables(query: CloudflareQuery, scopedVars: ScopedVars): CloudflareQuery {
     return {
       ...query,
-      zoneId: getTemplateSrv().replace(query.zoneId || this.defaultZoneId, scopedVars, 'raw'),
+      ...resolveZoneVariables(query, scopedVars),
       filters: (query.filters ?? DEFAULT_QUERY.filters).map((f) => ({
         ...f,
         values: expandValues(f.values, scopedVars),

@@ -47,7 +47,7 @@ Create a restricted **read-only** token for the accounts/zones you want to query
   check runs a real HTTP analytics query to verify actual access.
 
 No write permission, global API key, account email, or IP access is needed.
-Without Zone Read, enter a **Default zone ID** in datasource settings and use IDs
+Without Zone Read, enter zone IDs under **Default zones** in datasource settings and use IDs
 in queries; `zones()` and `accounts()` discovery will be unavailable. The token
 must still have access to that zone's Analytics dataset. Both account-owned and
 user-owned tokens are supported without relying on a user-token verification API.
@@ -60,8 +60,9 @@ user-owned tokens are supported without relying on a user-token verification API
    `mrqs001-cloudflareanalytics-datasource` in
    `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` (or the corresponding Grafana setting).
 3. Restart Grafana. Add a datasource named **Cloudflare Analytics**, set its API
-   token under the password field, optionally enter a default zone ID, and click
-   **Save & test**. The saved token is not returned to the browser.
+   token under the password field and click **Save & test**. Then choose one, several,
+   or **All zones** under **Default zones**, and save again. The saved token is not
+   returned to the browser.
 4. Import the dashboards from the datasource's Dashboards tab or `src/dashboards/`.
    Choose your Cloudflare datasource and zone.
 
@@ -79,7 +80,8 @@ datasources:
     type: mrqs001-cloudflareanalytics-datasource
     access: proxy
     jsonData:
-      defaultZoneId: '<optional-zone-id>'
+      defaultZoneMode: selected # or all to discover every accessible zone
+      defaultZoneIds: ['<zone-id>', '<another-zone-id>']
     secureJsonData:
       apiToken: $CF_API_TOKEN
 ```
@@ -129,14 +131,35 @@ Create a Grafana Query variable using this datasource:
 | `values(hostname, $zone)`    | Hostnames seen in the last complete hour (ending two minutes ago) |
 | `values(cacheStatus, $zone)` | Other supported dimension values use the same syntax              |
 
-Use a **single-value** `$zone` in the Zone selector. In filter values, a whole
-`$hostname` or `${hostname}` expands to exact values, preserving commas/quotes.
-Use **is one of / is not one of** with multi-value variables. For Include All,
-leave Grafana's custom All value empty so Grafana expands actual values; wildcard
-`*` is treated literally. At most 100 filter values are accepted. Grafana alert
-rules cannot evaluate dashboard variables; use literal zone IDs and filters.
+The **Zones** selector accepts one or multiple zones, **All zones**, or **Datasource
+default**. New queries inherit the saved default; an empty legacy default discovers
+all accessible zones. Zone dropdowns show domain names only. You can enter zone IDs
+manually if Zone Read is unavailable. Explicit selection overrides the default;
+defaults are not an access restriction (the API token controls access).
+
+A `$zone` variable can be single-value or multi-value. For Include All, either leave
+the custom All value empty (Grafana expands the IDs), or use `*` to discover all zones
+at query time. Bundled dashboards support multi-select and All. Existing `zoneId`
+queries remain compatible. `values(hostname, $zone)` discovery still requires a
+single zone ID; use a separate single-value variable for that lookup when needed.
+
+Each zone has separate graph series with `zone` and `zoneId` labels, including in
+alerts. Grouped legends show the zone and dimensions. Range totals combine the zones
+into one table with zone columns. **Top series per zone** and **Missing buckets** are
+under **Options**. Auto interval is shared across selected zones. If any zone fails,
+the query fails with its name rather than returning a partial graph.
+
+In filter values, a whole `$hostname` or `${hostname}` expands to exact values,
+preserving commas/quotes. Use **is one of / is not one of** with multi-value variables.
+For filter Include All, leave the custom All value empty; `*` is literal in filters.
+At most 100 filter values are accepted. Alert rules cannot evaluate dashboard
+variables: use literal zone IDs, All zones, or Datasource default.
 
 ## Correctness and limits
+
+A query supports up to 20 zones, sharing a budget of 48 analytics requests, 100,000
+returned rows, 400,000 output points, and 90 seconds. Large all-zone selections fail
+explicitly; they are never silently truncated. Narrow the selection, range, or grouping.
 
 Cloudflare's `httpRequestsAdaptiveGroups` returns **already scaled estimates**.
 We never multiply counts or bytes by `sampleInterval`. Sampling metadata and
@@ -195,6 +218,7 @@ npm exec playwright install chromium
 npm run e2e
 # Opt-in live tests, using only your locally supplied read-only token:
 python3 scripts/live_test.py
+python3 scripts/live_zones_test.py # two zones; datasource default All zones
 RUN_LIVE_TESTS=1 npm run e2e
 ```
 

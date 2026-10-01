@@ -26,7 +26,7 @@ test('live dashboard resolves zone variable and renders actual analytics', async
   test.skip(process.env.RUN_LIVE_TESTS !== '1', 'Requires a read-only Cloudflare token');
   test.setTimeout(120000);
   const dashboard = await readProvisionedDashboard({ fileName: 'overview.json' });
-  const requests: Array<{ zoneId: string; metric: string }> = [];
+  const requests: Array<{ zoneMode: string; zoneIds: string[]; metric: string }> = [];
   const responses: Array<
     Promise<{
       status: number;
@@ -45,7 +45,11 @@ test('live dashboard resolves zone variable and renders actual analytics', async
   });
   const view = await gotoDashboardPage({ uid: dashboard.uid, timeRange: { from: 'now-6h', to: 'now-2m' } });
   await view.waitForPanelsQueriesToComplete({ timeout: 90000, scrollAll: true });
-  expect(requests.some((q) => /^[a-f0-9]{32}$/.test(q.zoneId) && q.metric === 'requests')).toBeTruthy();
+  expect(
+    requests.some(
+      (q) => (q.zoneMode === 'all' || q.zoneIds?.some((id) => /^[a-f0-9]{32}$/.test(id))) && q.metric === 'requests'
+    )
+  ).toBeTruthy();
   const completed = await Promise.all(responses);
   expect(completed.length).toBeGreaterThan(0);
   for (const response of completed) {
@@ -87,6 +91,8 @@ test('live query editor changes the metric and grouping through Grafana', async 
   );
   await page.getByRole('option', { name: 'Edge status', exact: true }).click();
   await expect(response).toBeOK();
+  await page.getByTestId('cloudflare-query-editor').click({ position: { x: 2, y: 2 } });
+  await page.setViewportSize({ width: 1600, height: 1100 });
   await editor.getByRole('combobox', { name: 'Metric', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: '.local/live-query-editor.png', fullPage: true });
 });

@@ -49,6 +49,23 @@ Do not sum a top-series panel to obtain a zone-wide total. Use an ungrouped
 Requests query with Range totals. Totals and differently grouped queries can
 still differ within sampling uncertainty.
 
+## Multiple zones
+
+Each query resolves datasource defaults, selected IDs, or all discovered zones.
+Discovery names do not include account details; manual IDs fall back to ID labels
+when discovery is unavailable. All zones is dynamic and capped at 20 zones. Defaults
+are a convenience, not a permission boundary. Legacy single-zone queries still work.
+
+The planner checks every zone's retention and fields before fetching data. All zones
+use the same output interval and exact time range. It never sums different zones
+implicitly: time series carry zone and zoneId labels, and range-total rows include
+zone columns. Top N applies independently per zone. Merged table metadata contains
+per-zone sampling/ranking statistics plus shared request/row totals.
+
+The 48-request, 100,000-row and 90-second budgets are shared across all zones in one
+query; output is capped at 400,000 points. A failed zone or exhausted budget returns
+an error for the whole refId, with no partial frames. Other refIds remain independent.
+
 ## Nginx
 
 Start with end-user traffic (`requestSource=eyeball`), identical hosts and methods,

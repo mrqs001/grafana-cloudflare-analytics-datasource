@@ -1,17 +1,55 @@
-import React from 'react';
-import { Alert, Field, Input, SecretInput, Stack } from '@grafana/ui';
+import React, { useEffect, useState } from 'react';
+import { Button, Field, SecretInput, Stack } from '@grafana/ui';
+import { getBackendSrv } from '@grafana/runtime';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
-import { CloudflareOptions, CloudflareSecrets } from '../types';
+import { CloudflareOptions, CloudflareSecrets, Zone } from '../types';
+import { ZonePicker } from './ZonePicker';
 
 type Props = DataSourcePluginOptionsEditorProps<CloudflareOptions, CloudflareSecrets>;
 export function ConfigEditor({ options, onOptionsChange }: Props) {
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const canDiscover = Boolean(options.uid && options.secureJsonFields.apiToken && !options.secureJsonData?.apiToken);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let active = true;
+    if (canDiscover) {
+      getBackendSrv()
+        .get<Zone[]>(`/api/datasources/uid/${encodeURIComponent(options.uid)}/resources/zones`)
+        .then((value) => {
+          if (active) {
+            setZones(value);
+            setError('');
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setError('Zone discovery requires Zone Read. You can enter zone IDs instead.');
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [canDiscover, options.uid, refresh]);
+  const ids = options.jsonData.defaultZoneIds?.length
+    ? options.jsonData.defaultZoneIds
+    : options.jsonData.defaultZoneId
+      ? [options.jsonData.defaultZoneId]
+      : [];
+  const mode = options.jsonData.defaultZoneMode ?? (ids.length ? 'selected' : 'all');
   return (
     <Stack direction="column" gap={2}>
-      <Alert title="Read-only Cloudflare Analytics" severity="info">
-        Use a scoped API token with Analytics Read and Zone Read for discovery. Credentials are stored in Grafana secure
-        settings and used only by the Go backend.
-      </Alert>
-      <Field label="API token" description="Cloudflare API token. No write permissions are required.">
+      <Field
+        label="API token"
+        description="Use a read-only token with Analytics Read and Zone Read. Grafana stores it securely."
+      >
         <SecretInput
           id="cf-api-token"
           width={60}
@@ -32,23 +70,48 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
           }
         />
       </Field>
-      <Field
-        label="Default zone ID"
-        description="Optional 32-character zone ID. Allows querying without Zone Read discovery permission."
-      >
-        <Input
-          id="cf-default-zone"
-          width={60}
-          value={options.jsonData.defaultZoneId ?? ''}
-          placeholder="Zone ID from Cloudflare Overview"
-          onChange={(e) =>
-            onOptionsChange({
-              ...options,
-              jsonData: { ...options.jsonData, defaultZoneId: e.currentTarget.value.trim() },
-            })
-          }
-        />
-      </Field>
+      <div style={{ width: '100%', maxWidth: 600 }}>
+        <Field
+          label="Default zones"
+          description="Choose one, several, or all zones. New queries inherit this selection."
+        >
+          <ZonePicker
+            label="Default zones"
+            mode={mode}
+            ids={ids}
+            zones={zones}
+            loading={loading}
+            onChange={(nextMode, nextIds) =>
+              onOptionsChange({
+                ...options,
+                jsonData: {
+                  ...options.jsonData,
+                  defaultZoneId: '',
+                  defaultZoneMode: nextMode === 'all' ? 'all' : 'selected',
+                  defaultZoneIds: nextIds,
+                },
+              })
+            }
+          />
+        </Field>
+        {canDiscover ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="sync"
+            disabled={loading}
+            onClick={() => {
+              setLoading(true);
+              setRefresh((n) => n + 1);
+            }}
+          >
+            Refresh zones
+          </Button>
+        ) : (
+          <div>Save &amp; test your token to discover zones, or enter zone IDs.</div>
+        )}
+        {error && <div role="status">{error}</div>}
+      </div>
     </Stack>
   );
 }

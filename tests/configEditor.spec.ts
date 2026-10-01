@@ -7,9 +7,9 @@ test('configuration uses secure token input and explains required access', async
 }) => {
   const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
   await createDataSourceConfigPage({ type: ds.type });
-  await expect(page.getByRole('textbox', { name: 'Default zone ID' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Default zones' })).toBeVisible();
   await expect(page.locator('#cf-api-token')).toHaveAttribute('type', 'password');
-  await expect(page.getByText('Read-only Cloudflare Analytics', { exact: true })).toBeVisible();
+  await expect(page.getByText('Use a read-only token', { exact: false })).toBeVisible();
 });
 
 test('missing credential fails Save & test with an actionable message', async ({

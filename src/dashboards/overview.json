@@ -33,8 +33,9 @@
         },
         "query": "zones()",
         "refresh": 1,
-        "multi": false,
-        "includeAll": false,
+        "multi": true,
+        "includeAll": true,
+        "allValue": "*",
         "options": []
       }
     ]

@@ -28,6 +28,8 @@ type Filter struct {
 	Values   []string `json:"values"`
 }
 type Query struct {
+	ZoneIDs   []string `json:"zoneIds"`
+	ZoneMode  string   `json:"zoneMode"`
 	ZoneID    string   `json:"zoneId"`
 	Metric    string   `json:"metric"`
 	GroupBy   []string `json:"groupBy"`
@@ -52,7 +54,7 @@ func validate(q *Query, defaultZone string) error {
 		q.ZoneID = defaultZone
 	}
 	if !zonePattern.MatchString(q.ZoneID) {
-		return errors.New("select one zone or provide a 32-character zone ID; zone variables must be single-value")
+		return errors.New("provide a valid 32-character zone ID")
 	}
 	if q.Metric == "" {
 		q.Metric = "requests"
@@ -235,7 +237,12 @@ type queryStats struct {
 	SamplingKnown     bool
 }
 
+type fetchBudget struct{ calls, rows int }
+
 func (d *Datasource) fetch(ctx context.Context, p plan) ([]cloudflare.Row, queryStats, error) {
+	return d.fetchWithBudget(ctx, p, &fetchBudget{})
+}
+func (d *Datasource) fetchWithBudget(ctx context.Context, p plan, budget *fetchBudget) ([]cloudflare.Row, queryStats, error) {
 	stats := queryStats{SamplingKnown: p.settings.Has("avg_sampleInterval")}
 	all := []cloudflare.Row{}
 	limit := min(p.settings.MaxPageSize, 10000)
@@ -247,7 +254,7 @@ func (d *Datasource) fetch(ctx context.Context, p plan) ([]cloudflare.Row, query
 	}
 	var fetchRange func(time.Time, time.Time) error
 	fetchRange = func(from, to time.Time) error {
-		if stats.Calls >= 48 {
+		if budget.calls >= 48 {
 			return errors.New("query exceeded 48 Cloudflare requests; narrow the time range or reduce grouping cardinality")
 		}
 		filter := make(map[string]any, len(p.filter)+2)
@@ -257,6 +264,7 @@ func (d *Datasource) fetch(ctx context.Context, p plan) ([]cloudflare.Row, query
 		filter["datetime_geq"] = from.Format(time.RFC3339Nano)
 		filter["datetime_lt"] = to.Format(time.RFC3339Nano)
 		stats.Calls++
+		budget.calls++
 		rows, err := d.client.Rows(ctx, p.query.ZoneID, filter, p.fields, limit, p.query.Metric == "bytes" || p.query.Metric == "bandwidth", stats.SamplingKnown, stats.Ranked)
 		if err != nil {
 			return err
@@ -277,7 +285,8 @@ func (d *Datasource) fetch(ctx context.Context, p plan) ([]cloudflare.Row, query
 			return fetchRange(mid, to)
 		}
 		stats.Rows += len(rows)
-		if stats.Rows > 100000 {
+		budget.rows += len(rows)
+		if budget.rows > 100000 {
 			return errors.New("query exceeded 100000 rows; add filters or use a coarser interval")
 		}
 		for _, r := range rows {

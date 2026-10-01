@@ -24,7 +24,9 @@ var (
 )
 
 type settings struct {
-	DefaultZoneID string `json:"defaultZoneId"`
+	DefaultZoneIDs  []string `json:"defaultZoneIds"`
+	DefaultZoneMode string   `json:"defaultZoneMode"`
+	DefaultZoneID   string   `json:"defaultZoneId"`
 }
 type analyticsClient interface {
 	Close()
@@ -80,26 +82,8 @@ func (d *Datasource) query(ctx context.Context, q backend.DataQuery) backend.Dat
 	if err := json.Unmarshal(q.JSON, &qm); err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, "invalid query JSON")
 	}
-	if err := validate(&qm, d.settings.DefaultZoneID); err != nil {
-		return backend.ErrDataResponse(backend.StatusBadRequest, err.Error())
-	}
-	s, err := d.client.Settings(ctx, qm.ZoneID)
-	if err != nil {
-		return queryError(err)
-	}
-	p, err := makePlan(qm, q, s, time.Now())
-	if err != nil {
-		return backend.ErrDataResponse(backend.StatusBadRequest, err.Error())
-	}
-	rows, stats, err := d.fetch(ctx, p)
-	if err != nil {
-		return queryError(err)
-	}
-	f, err := frames(p, rows, stats, q.RefID)
-	if err != nil {
-		return queryError(err)
-	}
-	return backend.DataResponse{Frames: f}
+	return d.queryZones(ctx, qm, q)
+
 }
 func queryError(err error) backend.DataResponse {
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -120,30 +104,25 @@ func queryError(err error) backend.DataResponse {
 	return backend.ErrDataResponse(status, err.Error())
 }
 func (d *Datasource) CheckHealth(ctx context.Context, _ *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
-	zone := d.settings.DefaultZoneID
-	if zone == "" {
-		zones, err := d.client.Zones(ctx)
-		if err != nil {
-			return unhealthy(err)
-		}
-		if len(zones) == 0 {
-			return unhealthy(errors.New("no zones are visible; check Zone Read permission and resource scope, or configure a default zone ID"))
-		}
-		zone = zones[0].ID
-	}
-	if !zonePattern.MatchString(zone) {
-		return unhealthy(errors.New("default zone ID must contain 32 hexadecimal characters"))
-	}
-	s, err := d.client.Settings(ctx, zone)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	zones, err := d.resolveZones(ctx, Query{ZoneMode: "default"})
 	if err != nil {
 		return unhealthy(err)
 	}
 	end := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Minute)
-	_, err = d.client.Rows(ctx, zone, map[string]any{"datetime_geq": end.Add(-time.Minute).Format(time.RFC3339), "datetime_lt": end.Format(time.RFC3339)}, nil, 1, false, s.Has("avg_sampleInterval"), false)
-	if err != nil {
-		return unhealthy(err)
+	for _, zone := range zones {
+		s, err := d.client.Settings(ctx, zone.ID)
+		if err != nil {
+			return unhealthy(fmt.Errorf("zone %s: %w", zone.Name, err))
+		}
+		_, err = d.client.Rows(ctx, zone.ID, map[string]any{"datetime_geq": end.Add(-time.Minute).Format(time.RFC3339), "datetime_lt": end.Format(time.RFC3339)}, nil, 1, false, s.Has("avg_sampleInterval"), false)
+		if err != nil {
+			return unhealthy(fmt.Errorf("zone %s: %w", zone.Name, err))
+		}
 	}
-	return &backend.CheckHealthResult{Status: backend.HealthStatusOk, Message: "Cloudflare HTTP analytics query succeeded. Credentials and zone access are working."}, nil
+
+	return &backend.CheckHealthResult{Status: backend.HealthStatusOk, Message: fmt.Sprintf("Cloudflare HTTP analytics query succeeded for %d zone(s).", len(zones))}, nil
 }
 func unhealthy(err error) (*backend.CheckHealthResult, error) {
 	return &backend.CheckHealthResult{Status: backend.HealthStatusError, Message: err.Error()}, nil
@@ -161,7 +140,18 @@ func (d *Datasource) CallResource(ctx context.Context, req *backend.CallResource
 	var value any
 	switch req.Path {
 	case "zones":
-		value, err = d.client.Zones(ctx)
+		var zones []cloudflare.Zone
+		zones, err = d.client.Zones(ctx)
+		// Zone pickers need only zone identity, never account names/emails.
+		type zoneOption struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		options := []zoneOption{}
+		for _, z := range zones {
+			options = append(options, zoneOption{z.ID, z.Name})
+		}
+		value = options
 	case "accounts":
 		value, err = d.client.Accounts(ctx)
 	case "settings":

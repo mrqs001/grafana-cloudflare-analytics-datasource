@@ -25,7 +25,10 @@ export interface QueryFilter {
   operator: 'eq' | 'neq' | 'in' | 'notIn';
   values: string[];
 }
+export type ZoneMode = 'default' | 'selected' | 'all';
 export interface CloudflareQuery extends DataQuery {
+  zoneMode?: ZoneMode;
+  zoneIds?: string[];
   zoneId: string;
   metric: string;
   groupBy: string[];
@@ -37,6 +40,8 @@ export interface CloudflareQuery extends DataQuery {
 }
 export interface CloudflareOptions extends DataSourceJsonData {
   defaultZoneId?: string;
+  defaultZoneIds?: string[];
+  defaultZoneMode?: Exclude<ZoneMode, 'default'>;
 }
 export interface CloudflareSecrets {
   apiToken?: string;
@@ -48,7 +53,7 @@ export interface Account {
 export interface Zone {
   id: string;
   name: string;
-  account: Account;
+  account?: Account;
 }
 export interface DatasetSettings {
   enabled: boolean;

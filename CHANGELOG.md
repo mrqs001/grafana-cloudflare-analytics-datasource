@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- Single, multiple and all-zone defaults/queries, zone-labeled graphs, and multi-value zone variables.
+- Compact query editor with expandable options and domain-only zone dropdowns.
+
 - Go backend for Cloudflare HTTP adaptive analytics, real health checks and discovery.
 - Requests, request rate, response bytes and bandwidth; eleven dimensions/filters.
 - UTC buckets, partial-bucket rates, plan-aware intervals, sampling notices and
