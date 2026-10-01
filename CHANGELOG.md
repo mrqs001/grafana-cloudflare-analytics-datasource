@@ -1,9 +1,13 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.2.0 (2026-10-01)
 
 - Single, multiple and all-zone defaults/queries, zone-labeled graphs, and multi-value zone variables.
 - Compact query editor with expandable options and domain-only zone dropdowns.
+
+- Versioned build for the multi-zone editor; restart Grafana and hard-refresh after upgrading.
+
+## 0.1.0
 
 - Go backend for Cloudflare HTTP adaptive analytics, real health checks and discovery.
 - Requests, request rate, response bytes and bandwidth; eleven dimensions/filters.

@@ -88,6 +88,14 @@ datasources:
 
 ![Secure configuration and successful Cloudflare health check](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/configuration.png)
 
+## Updating the plugin
+
+After replacing a plugin build, recreate/restart Grafana and hard-refresh open
+Grafana tabs (Ctrl+Shift+R or Cmd+Shift+R). Grafana caches plugin JavaScript for up
+to an hour; an already-loaded editor can keep using the previous code. The current
+editor has a **Zones** multi-select and an **Options** button. Check the installed
+version in the datasource plugin details when troubleshooting.
+
 ## Query editor
 
 | Metric         | Meaning                                              | Unit       |

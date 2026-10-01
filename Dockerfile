@@ -13,7 +13,7 @@ WORKDIR /build
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download && go install github.com/magefile/mage@v1.15.0
-COPY Magefile.go ./
+COPY Magefile.go package.json ./
 COPY pkg pkg
 COPY src/plugin.json src/plugin.json
 RUN mage -v build:linux
