@@ -9,13 +9,15 @@ IDs, token values, raw responses and screenshots stay in ignored `.local/`.
 `python3 scripts/live_test.py` passed:
 
 - Real Grafana datasource health query; zone/settings/account metadata discovery.
-- 15m, 1h, 6h, 24h, 3d, 7d and 30d count, rate and total queries. Equivalent
+- 15m, 1h, 6h, 24h, 3d, 7d, 30d and 30.5d count, rate and total queries. Equivalent
   direct API bucket selections had 0% aggregate count difference in the recorded
   run. Integrated rate values agreed with counts. This is evidence for those
-  queries, not a guarantee that sampled selections always match.
+  queries, not a guarantee that sampled selections always match. The 30.5-day
+  case exercised live splitting across the 30-day per-request limit.
 - Status, hostname, cache, country, colo, method, path totals, request source,
   origin status, security action and security source grouping.
 - Bytes/bandwidth; in/not-in/not-equals filters; genuinely empty hostname results.
+- Grafana server-side reduce expressions, supporting the alerting data path.
 - Multiple refIds; invalid and unknown zones; invalid status filters; retention
   rejection; a real invalid-token datasource health check; variable lookup.
 - Grafana's public datasource response contained no secure token value.
@@ -65,7 +67,9 @@ validation, CI status, and browser tests must be rerun for release candidates.
 A clean multi-stage Docker build succeeded. The release archive includes backend
 binaries for Linux amd64/arm64/arm, Windows amd64 and macOS amd64/arm64. Typecheck,
 ESLint, frontend tests, Go race tests and vet passed. Browser checks confirmed
-configuration, query controls and real dashboard responses.
+configuration, query controls and real dashboard responses. All seven browser checks passed
+against the final clean Docker image. Secret scans covered the Git index, entire
+committed history, built assets, image configuration and build history.
 
 The official full plugin validator identified README relative links and a generic
 license placeholder; these were corrected, and a secret-free configuration

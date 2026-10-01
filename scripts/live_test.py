@@ -83,7 +83,7 @@ def main():
     print('PASS health, zone discovery and secure backend queries', flush=True)
     s, settings = gf(f'/api/datasources/uid/{UID}/resources/settings?zoneId={zone}')
     assert s == 200 and settings['enabled']
-    windows = [('15m',900),('1h',3600),('6h',21600),('24h',86400),('3d',259200),('7d',604800),('30d',2592000)]
+    windows = [('15m',900),('1h',3600),('6h',21600),('24h',86400),('3d',259200),('7d',604800),('30d',2592000),('30.5d',2635200)]
     sampled = False
     for label,seconds in windows:
         if seconds + 600 >= settings['notOlderThan']:
@@ -98,8 +98,17 @@ def main():
         # grouping/sampling levels. Totals from a different query may differ statistically.
         interval = frames[0]['schema']['meta']['custom']['intervalSeconds']
         native = 'date' if interval>=86400 else 'datetimeHour' if interval>=3600 else 'datetimeFifteenMinutes' if interval>=900 else 'datetimeFiveMinutes' if interval>=300 else 'datetimeMinute'
-        direct = gql('query($z:string!,$f:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!){viewer{zones(filter:{zoneTag:$z}){rows:httpRequestsAdaptiveGroups(limit:10000,filter:$f){count avg{sampleInterval} dimensions{'+native+'}}}}}', {'z':zone,'f':{'datetime_geq':start.isoformat(),'datetime_lt':end.isoformat(),'requestSource':'eyeball'}})
-        assert len(direct)<10000, 'Direct comparison hit its row limit'
+        direct = []
+        cursor = start
+        while cursor < end:
+            chunk_end = min(end, cursor + dt.timedelta(seconds=settings['maxDuration']))
+            limit = min(10000, settings['maxPageSize'])
+            chunk = gql('query($z:string!,$f:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$limit:uint64!){viewer{zones(filter:{zoneTag:$z}){rows:httpRequestsAdaptiveGroups(limit:$limit,filter:$f){count avg{sampleInterval} dimensions{'+native+'}}}}}', {'z':zone,'limit':limit,'f':{'datetime_geq':cursor.isoformat(),'datetime_lt':chunk_end.isoformat(),'requestSource':'eyeball'}})
+            assert len(chunk) < limit, 'Direct comparison hit its row limit'
+            direct.extend(chunk)
+            cursor = chunk_end
+        if seconds > settings['maxDuration']:
+            assert frames[0]['schema']['meta']['custom']['apiRequests'] > 1, 'Expected plan-aware range splitting'
         a,b = sum(values(result)),sum(x['count'] for x in direct)
         # Stable historical queries should agree closely; sampling can change between requests.
         relative = abs(a-b)/max(1,b)
@@ -128,7 +137,10 @@ def main():
     ok(run_queries(start,end,[query(zone,filters=[{'field':'status','operator':'notIn','values':['500','502']}])]))
     empty=ok(run_queries(start,end,[query(zone,filters=[{'field':'hostname','operator':'eq','values':['does-not-exist.invalid']}])]))
     assert not values(empty), 'Expected empty result'
-    print('PASS bytes/bandwidth, in/neq/notIn filters and empty results',flush=True)
+    expression = {'refId':'B','datasource':{'type':'__expr__','uid':'__expr__'},'type':'reduce','expression':'A','reducer':'sum','settings':{'mode':'dropNN'}}
+    computed = ok(run_queries(start,end,[query(zone),expression]))
+    assert 'B' in computed['results'], 'Server expression result missing'
+    print('PASS bytes/bandwidth, in/neq/notIn filters, empty results and server-side expressions',flush=True)
     for name,qs in [('invalid zone',[query('invalid')]),('unknown zone',[query('0'*32)]),('invalid filter',[query(zone,filters=[{'field':'status','operator':'eq','values':['bad']}])])]:
         _,result=run_queries(start,end,qs)
         assert result['results']['A'].get('error'),name+' was accepted'
