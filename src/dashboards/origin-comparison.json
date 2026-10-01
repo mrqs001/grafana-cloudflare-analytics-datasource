@@ -1,0 +1,420 @@
+{
+  "uid": "cloudflare-origin-comparison",
+  "title": "Cloudflare \u2022 Edge vs Nginx origin",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "tags": ["cloudflare", "analytics"],
+  "editable": true,
+  "refresh": "5m",
+  "time": {
+    "from": "now-6h",
+    "to": "now-2m"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_CLOUDFLARE",
+        "label": "Cloudflare datasource",
+        "type": "datasource",
+        "query": "mrqs001-cloudflareanalytics-datasource",
+        "current": {
+          "text": "Cloudflare Analytics",
+          "value": "cloudflare-analytics"
+        }
+      },
+      {
+        "name": "zone",
+        "label": "Zone",
+        "type": "query",
+        "datasource": {
+          "type": "mrqs001-cloudflareanalytics-datasource",
+          "uid": "${DS_CLOUDFLARE}"
+        },
+        "query": "zones()",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Compare edge and origin \u00b7 add your Nginx query here",
+      "type": "timeseries",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": [],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": ["eyeball"]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Mixed datasource panel: query A is Cloudflare. Add query B from your existing Nginx datasource. See the instructions below. No origin values are fabricated."
+    },
+    {
+      "id": 2,
+      "title": "Edge cache disposition",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": ["cacheStatus"],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": ["eyeball"]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Edge vs origin response status",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": ["status"],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": ["eyeball"]
+            }
+          ]
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": ["originStatus"],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": ["eyeball"]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Security actions at the edge",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": ["securityAction"],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": ["eyeball"]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Request sources \u00b7 all sources",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": ["requestSource"],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "text",
+      "title": "Connect your existing Nginx data",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Add the origin overlay\nEdit the first (Mixed) panel \u2192 Add query \u2192 select your existing Nginx datasource. Match hostname, request population, and UTC time range. This plugin requires no intermediate metric store.\n\n- Prometheus counter example: `sum(rate(nginx_http_requests_total[$__rate_interval]))` (adapt to your exporter). This is a rolling rate; it is **not mathematically identical** to a nonoverlapping Cloudflare bucket average.\n- Nginx access logs in Loki: `sum(count_over_time({job=\"nginx\"}[$__interval])) / $__interval_s` (adapt the selector). Log windows end at their timestamps; Cloudflare buckets are labeled at their starts. Shift or rebucket before exact comparisons.\n- For exact count comparison, aggregate logs into the same UTC `[start, end)` buckets; match methods, hosts, status coverage and units. Avoid partial first/last buckets.\n\n**Interpret the difference:** cache hits, WAF blocks/challenges, redirects, Workers and other edge responses may never reach Nginx. Origin status 0 is diagnostic, not proof of a WAF block. A Tunnel does not make edge and origin counts equivalent. Retries, direct origin requests, multiple origin hops, sampling and ingestion delays can also differ. Cache misses alone are not an origin request counter.\n\nOrigin data is intentionally unconfigured until you choose your existing datasource. Use the cache, security and origin-status panels to investigate discrepancies."
+      }
+    }
+  ]
+}

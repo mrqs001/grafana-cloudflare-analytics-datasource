@@ -1,0 +1,825 @@
+{
+  "uid": "cloudflare-http-overview",
+  "title": "Cloudflare \u2022 HTTP overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "tags": [
+    "cloudflare",
+    "analytics"
+  ],
+  "editable": true,
+  "refresh": "5m",
+  "time": {
+    "from": "now-6h",
+    "to": "now-2m"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_CLOUDFLARE",
+        "label": "Cloudflare datasource",
+        "type": "datasource",
+        "query": "mrqs001-cloudflareanalytics-datasource",
+        "current": {
+          "text": "Cloudflare Analytics",
+          "value": "cloudflare-analytics"
+        }
+      },
+      {
+        "name": "zone",
+        "label": "Zone",
+        "type": "query",
+        "datasource": {
+          "type": "mrqs001-cloudflareanalytics-datasource",
+          "uid": "${DS_CLOUDFLARE}"
+        },
+        "query": "zones()",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Edge requests \u00b7 estimated",
+      "type": "stat",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requests",
+          "groupBy": [],
+          "format": "total",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Average requests / second",
+      "type": "stat",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": [],
+          "format": "total",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Edge response bytes",
+      "type": "stat",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "bytes",
+          "groupBy": [],
+          "format": "total",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Requests / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": [],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Bandwidth \u00b7 bytes / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "bandwidth",
+          "groupBy": [],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Edge status codes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requests",
+          "groupBy": [
+            "status"
+          ],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Cache behaviour",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requests",
+          "groupBy": [
+            "cacheStatus"
+          ],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Hostnames",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requestRate",
+          "groupBy": [
+            "hostname"
+          ],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Cloudflare colos",
+      "type": "timeseries",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requests",
+          "groupBy": [
+            "colo"
+          ],
+          "format": "timeSeries",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Top URI paths",
+      "type": "table",
+      "datasource": {
+        "type": "mrqs001-cloudflareanalytics-datasource",
+        "uid": "${DS_CLOUDFLARE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mrqs001-cloudflareanalytics-datasource",
+            "uid": "${DS_CLOUDFLARE}"
+          },
+          "zoneId": "$zone",
+          "metric": "requests",
+          "groupBy": [
+            "path"
+          ],
+          "format": "total",
+          "interval": "auto",
+          "maxSeries": 20,
+          "fill": "null",
+          "filters": [
+            {
+              "field": "requestSource",
+              "operator": "eq",
+              "values": [
+                "eyeball"
+              ]
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "title": "Reading this dashboard",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Eyeball traffic only.** Counts include requests handled entirely at the edge. Cloudflare uses adaptive sampling; estimates are already scaled. Open Query inspector \u2192 JSON for sampling and range metadata. Missing buckets remain null. The last two minutes are excluded to reduce ingestion lag. Top series may omit lower-volume groups; notices identify this. Retention and field availability depend on the zone plan."
+      }
+    }
+  ]
+}

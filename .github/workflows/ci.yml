@@ -1,0 +1,45 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: python3 scripts/check_secrets.py
+      - run: npm ci
+      - run: npm run typecheck && npm run lint && npm run test:ci
+      - run: go test -race ./pkg/... && go vet ./pkg/...
+      - run: npm run build
+      - run: go install github.com/magefile/mage@v1.15.0
+      - run: mage -v build:linux
+      - run: python3 scripts/package.py
+      - name: Validate plugin metadata
+        run: npx --yes @grafana/plugin-validator@latest -analyzer=metadatavalid artifacts/*.zip
+      - name: Start disposable Grafana without Cloudflare credentials
+        run: docker compose -f docker-compose.yaml -f compose.dev.yaml up -d --wait
+      - run: npm exec playwright install chromium --with-deps
+      - run: npm run e2e -- --reporter=list
+      - name: Stop Grafana
+        if: always()
+        run: docker compose -f docker-compose.yaml -f compose.dev.yaml down
+      - uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-plugin-linux-amd64
+          path: artifacts/*
+          retention-days: 14

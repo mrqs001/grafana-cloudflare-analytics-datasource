@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Cloudflare Analytics",
+  "id": "mrqs001-cloudflareanalytics-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_cloudflareanalytics",
+  "info": {
+    "description": "Query Cloudflare HTTP/CDN/WAF request analytics directly, without intermediate metric storage.",
+    "author": {
+      "name": "Mrqs001"
+    },
+    "keywords": ["datasource", "cloudflare", "analytics", "cdn", "waf"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [
+      {
+        "name": "Project",
+        "url": "https://github.com/mrqs001/grafana-cloudflare-analytics-datasource"
+      },
+      {
+        "name": "Report an issue",
+        "url": "https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/issues"
+      }
+    ],
+    "screenshots": [
+      {
+        "name": "Secure configuration and live health check",
+        "path": "img/configuration.png"
+      }
+    ],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=13.2.3",
+    "plugins": []
+  },
+  "alerting": true,
+  "includes": [
+    {
+      "name": "HTTP overview",
+      "path": "dashboards/overview.json",
+      "type": "dashboard"
+    },
+    {
+      "name": "Edge vs Nginx origin",
+      "path": "dashboards/origin-comparison.json",
+      "type": "dashboard"
+    }
+  ]
+}

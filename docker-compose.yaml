@@ -1,0 +1,24 @@
+services:
+  grafana:
+    build: .
+    ports:
+      - '127.0.0.1:${GRAFANA_PORT:-3300}:3000'
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: mrqs001-cloudflareanalytics-datasource
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
+      CF_ZONE_ID: ${CF_ZONE_ID:-}
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning:ro
+    tmpfs:
+      - /var/lib/grafana/data:uid=472,gid=0
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:3000/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 30

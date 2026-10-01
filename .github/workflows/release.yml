@@ -1,0 +1,46 @@
+name: Draft release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Match tag to package version
+        run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
+      - run: npm ci
+      - run: npm run typecheck && npm run lint && npm run test:ci
+      - run: go test -race ./pkg/... && go vet ./pkg/...
+      - run: npm run build
+      - run: go install github.com/magefile/mage@v1.15.0
+      - run: mage -v buildAll
+      - name: Sign when an approved publisher credential is configured
+        env:
+          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+        run: |
+          if [ -n "$GRAFANA_ACCESS_POLICY_TOKEN" ]; then
+            npm run sign
+          else
+            echo 'Building unsigned community archive; catalog signing is not configured.'
+          fi
+      - run: python3 scripts/package.py
+      - run: npx --yes @grafana/plugin-validator@latest -analyzer=metadatavalid artifacts/*.zip
+      - name: Create draft release for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" artifacts/* --draft --generate-notes --title "$GITHUB_REF_NAME"

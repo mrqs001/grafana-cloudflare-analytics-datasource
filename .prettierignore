@@ -1,0 +1,9 @@
+.config
+.local
+node_modules
+dist
+artifacts
+go.sum
+package-lock.json
+playwright-report
+test-results

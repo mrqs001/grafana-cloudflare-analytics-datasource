@@ -1,0 +1,7 @@
+# Fast iteration after npm run build && mage build:linux.
+services:
+  grafana:
+    image: grafana/grafana:13.2.3
+    build: !reset null
+    volumes:
+      - ./dist:/var/lib/grafana/plugins/mrqs001-cloudflareanalytics-datasource:ro
