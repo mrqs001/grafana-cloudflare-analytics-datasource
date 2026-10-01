@@ -59,12 +59,30 @@ are a convenience, not a permission boundary. Legacy single-zone queries still w
 The planner checks every zone's retention and fields before fetching data. All zones
 use the same output interval and exact time range. It never sums different zones
 implicitly: time series carry zone and zoneId labels, and range-total rows include
-zone columns. Top N applies independently per zone. Merged table metadata contains
+zone columns only for multi-zone queries. Single-zone totals contain just the
+requested dimensions and metric. Top N applies independently per zone. Merged table metadata contains
 per-zone sampling/ranking statistics plus shared request/row totals.
 
 The 48-request, 100,000-row and 90-second budgets are shared across all zones in one
 query; output is capped at 400,000 points. A failed zone or exhausted budget returns
 an error for the whole refId, with no partial frames. Other refIds remain independent.
+
+## Filters and caching
+
+Status ranges use `gt`, `geq`, `lt`, or `leq`. For 5xx, combine status `geq 500`
+and `lt 600`; use `geq 400` for 4xx and 5xx together. URI path `like` and `notLike`
+use Cloudflare's `%` wildcard (for example `/api/%`). Clauses combine with AND.
+Values remain GraphQL variables. Literal dollar signs in paths are accepted;
+whole unresolved variable references such as `$hostname` still fail validation.
+
+Identical upstream analytics requests share a 30-second cache. Keys include zone,
+exact time bounds, filters, dimensions, metric selection, ranking, and row limit.
+No time rounding is introduced; moving relative ranges can miss the cache. Cache
+hits and shared requests appear as `cacheHits` / `totalCacheHits` in query metadata.
+`apiRequests` / `totalAPIRequests` exclude them (and exclude metadata calls/retries).
+The 48-request planning budget still counts cache lookups to bound query work.
+Errors are not cached. Canceling one waiter does not cancel other waiters; when
+all waiters leave, pending upstream work is canceled. Health checks bypass caches.
 
 ## Nginx
 

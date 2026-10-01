@@ -210,8 +210,9 @@ may produce different estimates; sparse/missing buckets do not prove zero traffi
   A budget failure returns an actionable error instead of partial metrics.
 - Up to four in-flight API calls per datasource, at most two bounded retries on
   HTTP 429/5xx. Cloudflare GraphQL errors are handled even with HTTP 200.
-- Only metadata is cached (five minutes, per datasource/token). No historical
-  metric storage, background scraping, raw GraphQL, or write API is exposed.
+- Metadata is cached for five minutes and identical analytics requests for 30 seconds,
+  per datasource/token (128 entries, 32 MiB total). No persistent metric storage,
+  background scraping, raw GraphQL, or write API is exposed.
 
 Detailed semantics, operational caveats, and Nginx examples:
 [query semantics](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/query-semantics.md) · [architecture](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/architecture.md).
