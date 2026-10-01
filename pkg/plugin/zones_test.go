@@ -34,10 +34,10 @@ func (c *zoneClient) Settings(_ context.Context, id string) (cloudflare.Settings
 	}
 	return s, nil
 }
-func (c *zoneClient) Rows(_ context.Context, id string, filter map[string]any, fields []string, _ int, _ bool, _ bool, _ bool) ([]cloudflare.Row, error) {
+func (c *zoneClient) Rows(_ context.Context, id string, filter map[string]any, fields []string, _ int, _ bool, _ bool, _ bool) ([]cloudflare.Row, bool, error) {
 	c.calls++
 	if id == c.failZone {
-		return nil, errors.New("analytics denied")
+		return nil, false, errors.New("analytics denied")
 	}
 	a, _ := time.Parse(time.RFC3339Nano, filter["datetime_geq"].(string))
 	r := cloudflare.Row{Count: 3, Dimensions: map[string]any{}}
@@ -51,7 +51,7 @@ func (c *zoneClient) Rows(_ context.Context, id string, filter map[string]any, f
 			r.Dimensions[f] = "200"
 		}
 	}
-	return []cloudflare.Row{r}, nil
+	return []cloudflare.Row{r}, false, nil
 }
 func TestZoneSelectionModesAndLegacy(t *testing.T) {
 	d := Datasource{client: &zoneClient{}, settings: settings{DefaultZoneMode: "selected", DefaultZoneIDs: []string{zoneB}}}
@@ -150,5 +150,28 @@ func TestMultiZoneSharesRequestBudget(t *testing.T) {
 	r := d.queryZones(context.Background(), Query{ZoneMode: "all"}, backend.DataQuery{RefID: "A", TimeRange: backend.TimeRange{From: end.Add(-30 * time.Minute), To: end}})
 	if r.Error == nil || len(r.Frames) > 0 || c.calls != 48 {
 		t.Fatalf("shared request cap: calls=%d error=%v", c.calls, r.Error)
+	}
+}
+
+func TestSingleZoneTotalsOmitZoneColumns(t *testing.T) {
+	d := Datasource{client: &zoneClient{}}
+	end := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Minute)
+	for _, groups := range [][]string{nil, {"status"}} {
+		r := d.queryZones(context.Background(), Query{ZoneID: zoneA, Format: "total", GroupBy: groups}, backend.DataQuery{RefID: "A", TimeRange: backend.TimeRange{From: end.Add(-time.Minute), To: end}})
+		if r.Error != nil {
+			t.Fatal(r.Error)
+		}
+		f := r.Frames[0]
+		if len(f.Fields) != len(groups)+1 || f.Fields[len(groups)].Name != "requests" || f.Fields[len(groups)].At(0).(float64) != 3 {
+			t.Fatal("unexpected single-zone table", f.Fields)
+		}
+		for _, field := range f.Fields {
+			if field.Name == "zone" || field.Name == "zoneId" || len(field.Labels) > 0 {
+				t.Fatal("zone identity leaked into single-zone columns")
+			}
+		}
+		if len(f.Meta.Custom.(map[string]any)["zones"].([]map[string]any)) != 1 {
+			t.Fatal("inspector lost zone metadata")
+		}
 	}
 }

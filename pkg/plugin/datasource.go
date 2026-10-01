@@ -33,7 +33,7 @@ type analyticsClient interface {
 	Zones(context.Context) ([]cloudflare.Zone, error)
 	Accounts(context.Context) ([]cloudflare.Account, error)
 	Settings(context.Context, string) (cloudflare.Settings, error)
-	Rows(context.Context, string, map[string]any, []string, int, bool, bool, bool) ([]cloudflare.Row, error)
+	Rows(context.Context, string, map[string]any, []string, int, bool, bool, bool) ([]cloudflare.Row, bool, error)
 }
 type Datasource struct {
 	client   analyticsClient
@@ -116,7 +116,7 @@ func (d *Datasource) CheckHealth(ctx context.Context, _ *backend.CheckHealthRequ
 		if err != nil {
 			return unhealthy(fmt.Errorf("zone %s: %w", zone.Name, err))
 		}
-		_, err = d.client.Rows(ctx, zone.ID, map[string]any{"datetime_geq": end.Add(-time.Minute).Format(time.RFC3339), "datetime_lt": end.Format(time.RFC3339)}, nil, 1, false, s.Has("avg_sampleInterval"), false)
+		_, _, err = d.client.Rows(cloudflare.WithoutCache(ctx), zone.ID, map[string]any{"datetime_geq": end.Add(-time.Minute).Format(time.RFC3339), "datetime_lt": end.Format(time.RFC3339)}, nil, 1, false, s.Has("avg_sampleInterval"), false)
 		if err != nil {
 			return unhealthy(fmt.Errorf("zone %s: %w", zone.Name, err))
 		}

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -16,6 +15,7 @@ import (
 	"github.com/mrqs001/grafana-cloudflare-analytics-datasource/pkg/cloudflare"
 )
 
+var wholeVariablePattern = regexp.MustCompile(`^\$(?:[a-zA-Z_]\w*|\{[^}]+\})$`)
 var zonePattern = regexp.MustCompile(`^[a-fA-F0-9]{32}$`)
 var dimensions = map[string]string{
 	"status": "edgeResponseStatus", "originStatus": "originResponseStatus", "hostname": "clientRequestHTTPHost", "cacheStatus": "cacheStatus", "country": "clientCountryName", "colo": "coloCode", "method": "clientRequestHTTPMethodName", "requestSource": "requestSource", "path": "clientRequestPath", "securityAction": "securityAction", "securitySource": "securitySource",
@@ -101,17 +101,25 @@ func validate(q *Query, defaultZone string) error {
 		}
 		switch f.Operator {
 		case "eq", "neq", "in", "notIn":
+		case "gt", "geq", "lt", "leq":
+			if f.Field != "status" && f.Field != "originStatus" {
+				return errors.New("range filters are supported for edge and origin status")
+			}
+		case "like", "notLike":
+			if f.Field != "path" {
+				return errors.New("pattern filters are supported for URI path")
+			}
 		default:
 			return errors.New("unsupported filter operator")
 		}
 		if len(f.Values) == 0 || len(f.Values) > 100 {
 			return errors.New("each filter needs 1 to 100 values")
 		}
-		if (f.Operator == "eq" || f.Operator == "neq") && len(f.Values) != 1 {
-			return errors.New("equals filters need one value; use in / not in for multi-value variables")
+		if f.Operator != "in" && f.Operator != "notIn" && len(f.Values) != 1 {
+			return errors.New("this filter needs one value; use in / not in for multi-value variables")
 		}
 		for _, v := range f.Values {
-			if len(v) > 2048 || strings.Contains(v, "$") {
+			if len(v) > 2048 || wholeVariablePattern.MatchString(v) {
 				return errors.New("filter contains an unresolved variable or exceeds 2048 characters")
 			}
 			if f.Field == "status" || f.Field == "originStatus" {
@@ -216,9 +224,9 @@ func makePlan(q Query, dq backend.DataQuery, s cloudflare.Settings, now time.Tim
 				values[i], _ = strconv.Atoi(v)
 			}
 		}
-		suffix := map[string]string{"eq": "", "neq": "_neq", "in": "_in", "notIn": "_notin"}[f.Operator]
+		suffix := map[string]string{"eq": "", "neq": "_neq", "in": "_in", "notIn": "_notin", "gt": "_gt", "geq": "_geq", "lt": "_lt", "leq": "_leq", "like": "_like", "notLike": "_notlike"}[f.Operator]
 		var value any = values
-		if f.Operator == "eq" || f.Operator == "neq" {
+		if f.Operator != "in" && f.Operator != "notIn" {
 			value = values[0]
 		}
 		clauses = append(clauses, map[string]any{field + suffix: value})
@@ -230,14 +238,14 @@ func makePlan(q Query, dq backend.DataQuery, s cloudflare.Settings, now time.Tim
 }
 
 type queryStats struct {
-	Ranked            bool
-	SeriesLowerBound  bool
-	Calls, Rows       int
-	MaxSampleInterval float64
-	SamplingKnown     bool
+	Ranked                 bool
+	SeriesLowerBound       bool
+	Calls, Rows, CacheHits int
+	MaxSampleInterval      float64
+	SamplingKnown          bool
 }
 
-type fetchBudget struct{ calls, rows int }
+type fetchBudget struct{ calls, rows, cacheHits int }
 
 func (d *Datasource) fetch(ctx context.Context, p plan) ([]cloudflare.Row, queryStats, error) {
 	return d.fetchWithBudget(ctx, p, &fetchBudget{})
@@ -263,11 +271,16 @@ func (d *Datasource) fetchWithBudget(ctx context.Context, p plan, budget *fetchB
 		}
 		filter["datetime_geq"] = from.Format(time.RFC3339Nano)
 		filter["datetime_lt"] = to.Format(time.RFC3339Nano)
-		stats.Calls++
 		budget.calls++
-		rows, err := d.client.Rows(ctx, p.query.ZoneID, filter, p.fields, limit, p.query.Metric == "bytes" || p.query.Metric == "bandwidth", stats.SamplingKnown, stats.Ranked)
+		rows, cached, err := d.client.Rows(ctx, p.query.ZoneID, filter, p.fields, limit, p.query.Metric == "bytes" || p.query.Metric == "bandwidth", stats.SamplingKnown, stats.Ranked)
 		if err != nil {
 			return err
+		}
+		if cached {
+			stats.CacheHits++
+			budget.cacheHits++
+		} else {
+			stats.Calls++
 		}
 		if stats.Ranked && len(rows) >= limit {
 			stats.SeriesLowerBound = true
@@ -381,7 +394,7 @@ func frames(p plan, rows []cloudflare.Row, stats queryStats, ref string) (data.F
 		notices = append(notices, data.Notice{Severity: data.NoticeSeverityWarning, Text: fmt.Sprintf("Showing top %d of at least %d series ranked over the full range. Displayed series do not represent the full total.", len(keys), totalSeries)})
 	}
 	meta := func() *data.FrameMeta {
-		return &data.FrameMeta{Notices: notices, Custom: map[string]any{"dataset": cloudflare.Dataset, "intervalSeconds": p.interval.Seconds(), "rangeFrom": p.from, "rangeTo": p.to, "bucketTimestamp": "start", "rangeSemantics": "[from,to)", "apiRequests": stats.Calls, "rows": stats.Rows, "maxSampleInterval": stats.MaxSampleInterval, "samplingKnown": stats.SamplingKnown, "totalSeries": totalSeries, "seriesCountIsLowerBound": stats.SeriesLowerBound, "serverRanked": stats.Ranked}}
+		return &data.FrameMeta{Notices: notices, Custom: map[string]any{"dataset": cloudflare.Dataset, "intervalSeconds": p.interval.Seconds(), "rangeFrom": p.from, "rangeTo": p.to, "bucketTimestamp": "start", "rangeSemantics": "[from,to)", "apiRequests": stats.Calls, "cacheHits": stats.CacheHits, "rows": stats.Rows, "maxSampleInterval": stats.MaxSampleInterval, "samplingKnown": stats.SamplingKnown, "totalSeries": totalSeries, "seriesCountIsLowerBound": stats.SeriesLowerBound, "serverRanked": stats.Ranked}}
 	}
 	unit := "short"
 	switch p.query.Metric {

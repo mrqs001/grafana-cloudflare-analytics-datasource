@@ -119,13 +119,13 @@ func (f *fakeClient) Accounts(context.Context) ([]cloudflare.Account, error) { r
 func (f *fakeClient) Settings(context.Context, string) (cloudflare.Settings, error) {
 	return testSettings(), nil
 }
-func (f *fakeClient) Rows(_ context.Context, _ string, filter map[string]any, _ []string, limit int, _ bool, _ bool, _ bool) ([]cloudflare.Row, error) {
+func (f *fakeClient) Rows(_ context.Context, _ string, filter map[string]any, _ []string, limit int, _ bool, _ bool, _ bool) ([]cloudflare.Row, bool, error) {
 	f.calls++
 	a, _ := time.Parse(time.RFC3339Nano, filter["datetime_geq"].(string))
 	b, _ := time.Parse(time.RFC3339Nano, filter["datetime_lt"].(string))
 	f.ranges = append(f.ranges, [2]time.Time{a, b})
 	if f.failAt == f.calls {
-		return nil, errors.New("upstream error")
+		return nil, false, errors.New("upstream error")
 	}
 	n := 1
 	if f.full || b.Sub(a) > time.Minute {
@@ -136,7 +136,7 @@ func (f *fakeClient) Rows(_ context.Context, _ string, filter map[string]any, _ 
 		rows[i].Count = b.Sub(a).Seconds()
 		rows[i].Dimensions = map[string]any{"datetimeMinute": a.Truncate(time.Minute).Format(time.RFC3339)}
 	}
-	return rows, nil
+	return rows, false, nil
 }
 func TestSplitFullPagesWithoutDoubleCounting(t *testing.T) {
 	client := &fakeClient{}
@@ -209,5 +209,44 @@ func TestServerRankedTotalsAreOnlyUsedForWholeRange(t *testing.T) {
 	_, stats, err = d.fetch(context.Background(), p)
 	if err != nil || stats.Ranked || stats.Calls != 4 {
 		t.Fatalf("cannot merge local top-N lists: %+v %v", stats, err)
+	}
+}
+
+func TestRangeAndPatternFilters(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Minute)
+	q := Query{ZoneID: zoneA, Filters: []Filter{
+		{Field: "status", Operator: "geq", Values: []string{"400"}},
+		{Field: "status", Operator: "lt", Values: []string{"600"}},
+		{Field: "path", Operator: "like", Values: []string{"/api/%"}},
+		{Field: "path", Operator: "notLike", Values: []string{"/api/private/%"}},
+	}}
+	if err := validate(&q, ""); err != nil {
+		t.Fatal(err)
+	}
+	p, err := makePlan(q, backend.DataQuery{TimeRange: backend.TimeRange{From: now.Add(-time.Hour), To: now}}, testSettings(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clauses := p.filter["AND"].([]map[string]any)
+	if clauses[0]["edgeResponseStatus_geq"] != 400 || clauses[1]["edgeResponseStatus_lt"] != 600 || clauses[2]["clientRequestPath_like"] != "/api/%" || clauses[3]["clientRequestPath_notlike"] != "/api/private/%" {
+		t.Fatal("range/pattern variables incorrect", p.filter)
+	}
+	for _, f := range []Filter{
+		{Field: "path", Operator: "geq", Values: []string{"400"}},
+		{Field: "status", Operator: "like", Values: []string{"5%"}},
+		{Field: "originStatus", Operator: "lt", Values: []string{"600", "700"}},
+		{Field: "status", Operator: "geq", Values: []string{"abc"}},
+		{Field: "path", Operator: "like", Values: []string{"/api/%", "/foo/%"}},
+	} {
+		q.Filters = []Filter{f}
+		if validate(&q, "") == nil {
+			t.Fatalf("invalid filter accepted: %+v", f)
+		}
+	}
+	for _, value := range []string{"/price/$5", "/api/$metadata", "/literal${name}/path", "/$"} {
+		q.Filters = []Filter{{Field: "path", Operator: "eq", Values: []string{value}}}
+		if err := validate(&q, ""); err != nil {
+			t.Fatalf("literal dollar path rejected: %v", err)
+		}
 	}
 }

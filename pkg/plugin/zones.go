@@ -158,14 +158,14 @@ func (d *Datasource) queryZones(ctx context.Context, qm Query, dq backend.DataQu
 			for j := range f.Meta.Notices {
 				f.Meta.Notices[j].Text = zones[i].Name + ": " + f.Meta.Notices[j].Text
 			}
-			if qm.Format == "total" { // one table across zones, with explicit zone columns
+			if qm.Format == "total" && len(zones) > 1 { // zone columns only disambiguate multi-zone tables
 				names, ids := make([]string, f.Rows()), make([]string, f.Rows())
 				for j := range names {
 					names[j] = zones[i].Name
 					ids[j] = zones[i].ID
 				}
 				f.Fields = append([]*data.Field{data.NewField("zone", nil, names), data.NewField("zoneId", nil, ids)}, f.Fields...)
-			} else {
+			} else if qm.Format != "total" {
 				for _, field := range f.Fields[1:] {
 					if field.Labels == nil {
 						field.Labels = data.Labels{}
@@ -201,13 +201,14 @@ func (d *Datasource) queryZones(ctx context.Context, qm Query, dq backend.DataQu
 	}
 	for _, f := range out {
 		meta := f.Meta.Custom.(map[string]any)
-		meta["totalAPIRequests"], meta["totalRows"] = budget.calls, budget.rows
+		meta["totalAPIRequests"], meta["totalRows"] = budget.calls-budget.cacheHits, budget.rows
+		meta["totalCacheHits"] = budget.cacheHits
 		if qm.Format == "total" {
 			delete(meta, "zoneId")
 			delete(meta, "zone")
 			// The merged table has per-zone sampling and ranking, not the first
 			// zone's statistics masquerading as the whole query.
-			for _, key := range []string{"apiRequests", "rows", "maxSampleInterval", "samplingKnown", "totalSeries", "seriesCountIsLowerBound", "serverRanked"} {
+			for _, key := range []string{"apiRequests", "cacheHits", "rows", "maxSampleInterval", "samplingKnown", "totalSeries", "seriesCountIsLowerBound", "serverRanked"} {
 				delete(meta, key)
 			}
 			meta["zones"] = zoneMetadata

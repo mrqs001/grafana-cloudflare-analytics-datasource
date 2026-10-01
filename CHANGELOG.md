@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (2026-10-01)
+
+- Add status range filters and URI path patterns; accept literal dollar signs in paths.
+- Omit zone columns from single-zone totals, retaining zone metadata in the inspector.
+- Cache identical analytics requests for 30 seconds with bounded memory; coalesce
+  concurrent lookups per key without holding locks during network calls.
+- Keep health checks uncached and derive the User-Agent version from build metadata.
+
 ## 0.2.1 (2026-10-01)
 
 - Keep query controls and filters on fewer rows in narrow Explore and panel editors.

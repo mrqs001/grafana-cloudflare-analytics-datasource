@@ -96,3 +96,36 @@ test('live query editor changes the metric and grouping through Grafana', async 
   await editor.getByRole('combobox', { name: 'Metric', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: '.local/live-query-editor.png', fullPage: true });
 });
+
+test('status ranges and path patterns emit typed filters and reset incompatible operators', async ({
+  explorePage,
+  readProvisionedDataSource,
+  page,
+}) => {
+  const ds = await readProvisionedDataSource({ fileName: 'datasources.yml' });
+  await page.route('**/resources/zones', (route) => route.fulfill({ json: [] }));
+  const queries: Array<{ filters: Array<{ field: string; operator: string; values: string[] }> }> = [];
+  await page.route('**/api/ds/query*', (route) => {
+    queries.push(...route.request().postDataJSON().queries);
+    return route.fulfill({ json: { results: { A: { status: 200, frames: [] } } } });
+  });
+  await explorePage.goto();
+  await explorePage.datasource.set(ds.name);
+  const editor = page.getByTestId('cloudflare-query-editor');
+  await editor.getByRole('combobox', { name: 'Filter 1', exact: true }).click();
+  await page.getByRole('option', { name: 'Edge status', exact: true }).click();
+  await editor.getByRole('combobox', { name: 'Operator 1', exact: true }).click();
+  await page.getByRole('option', { name: 'greater than or equal', exact: true }).click();
+  await editor.getByRole('textbox', { name: 'Values 1', exact: true }).fill('400');
+  await explorePage.runQuery();
+  expect(queries.at(-1)?.filters[0]).toEqual({ field: 'status', operator: 'geq', values: ['400'] });
+  await editor.getByRole('combobox', { name: 'Filter 1', exact: true }).click();
+  await page.getByRole('option', { name: 'URI path', exact: true }).click();
+  await expect(editor.getByRole('combobox', { name: 'Operator 1', exact: true })).toHaveValue('equals');
+  await editor.getByRole('combobox', { name: 'Operator 1', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'greater than or equal', exact: true })).toHaveCount(0);
+  await page.getByRole('option', { name: 'matches pattern', exact: true }).click();
+  await editor.getByRole('textbox', { name: 'Values 1', exact: true }).fill('/api/$metadata/%');
+  await explorePage.runQuery();
+  expect(queries.at(-1)?.filters[0]).toEqual({ field: 'path', operator: 'like', values: ['/api/$metadata/%'] });
+});

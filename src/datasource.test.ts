@@ -57,3 +57,14 @@ test('Grafana custom All replacement can bypass the formatter callback', () => {
     .mockReturnValue({ replace: jest.fn(() => '*') } as unknown as ReturnType<typeof getTemplateSrv>);
   expect(resolveZoneVariables(base, {})).toEqual({ zoneId: '', zoneMode: 'all', zoneIds: [] });
 });
+
+test('literal dollar characters in paths survive template expansion', () => {
+  jest.mocked(getTemplateSrv).mockReturnValue({
+    replace: jest.fn((text) => text),
+  } as unknown as ReturnType<typeof getTemplateSrv>);
+  expect(expandValues(['/price/$5', '/api/$metadata', '/api/%'], {})).toEqual([
+    '/price/$5',
+    '/api/$metadata',
+    '/api/%',
+  ]);
+});

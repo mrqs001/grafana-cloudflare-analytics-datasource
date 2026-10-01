@@ -122,7 +122,9 @@ version in the datasource plugin details when troubleshooting.
 Group/filter by edge status, origin status, hostname, cache status, country, colo,
 HTTP method, request source, URI path, security action, or security source when
 available on your plan. Select up to three grouping dimensions. Filters combine
-with AND; each supports equals, not equals, in, and not in. Multiple values use
+with AND. All fields support equals, not equals, in, and not in. Status codes also
+support greater/less than (including equality); URI paths support pattern matching
+with `%` as a wildcard, such as `/api/%`. Multiple values use
 one line per value. Country codes and colo codes must match Cloudflare's values.
 
 New queries default to `requestSource = eyeball`, representing end-user traffic.
@@ -132,7 +134,8 @@ explicit filters and never silently adds a hidden source filter.
 Examples:
 
 - **Origin comparison:** Request rate, your zone, 5m interval, source = eyeball.
-- **Errors:** Requests, group by edge status, status in 500 / 502 / 503.
+- **Errors:** Requests, edge status ≥ 500 and < 600 (use ≥ 400 for both 4xx and 5xx).
+- **API paths:** URI path matches pattern `/api/%`.
 - **Cache:** Request rate, group by cache status, hostname = your application.
 - **Top paths:** Requests, **Range totals / top values**, group by URI path.
 - **Security:** Requests, group by security action and edge status.
@@ -167,7 +170,7 @@ single zone ID; use a separate single-value variable for that lookup when needed
 
 Each zone has separate graph series with `zone` and `zoneId` labels, including in
 alerts. Grouped legends show the zone and dimensions. Range totals combine the zones
-into one table with zone columns. **Top series per zone** and **Missing buckets** are
+into one table; zone columns appear only when querying multiple zones. **Top series per zone** and **Missing buckets** are
 under **Options**. Auto interval is shared across selected zones. If any zone fails,
 the query fails with its name rather than returning a partial graph.
 
@@ -178,6 +181,10 @@ At most 100 filter values are accepted. Alert rules cannot evaluate dashboard
 variables: use literal zone IDs, All zones, or Datasource default.
 
 ## Correctness and limits
+
+Identical analytics requests are cached for 30 seconds per datasource, with bounded
+memory and shared concurrent requests. Exact time ranges are part of the cache key;
+moving ranges can miss the cache. Health checks always query Cloudflare directly.
 
 A query supports up to 20 zones, sharing a budget of 48 analytics requests, 100,000
 returned rows, 400,000 output points, and 90 seconds. Large all-zone selections fail

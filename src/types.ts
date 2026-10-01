@@ -22,7 +22,7 @@ export const METRICS = [
 ];
 export interface QueryFilter {
   field: string;
-  operator: 'eq' | 'neq' | 'in' | 'notIn';
+  operator: 'eq' | 'neq' | 'in' | 'notIn' | 'gt' | 'geq' | 'lt' | 'leq' | 'like' | 'notLike';
   values: string[];
 }
 export type ZoneMode = 'default' | 'selected' | 'all';
@@ -72,3 +72,29 @@ export const DEFAULT_QUERY: Omit<CloudflareQuery, 'refId'> = {
   maxSeries: 20,
   fill: 'null',
 };
+
+export function filterOperators(field: string) {
+  const basic = [
+    { value: 'eq', label: 'equals' },
+    { value: 'neq', label: 'does not equal' },
+    { value: 'in', label: 'is one of' },
+    { value: 'notIn', label: 'is not one of' },
+  ];
+  if (field === 'status' || field === 'originStatus') {
+    return [
+      ...basic,
+      { value: 'gt', label: 'greater than' },
+      { value: 'geq', label: 'greater than or equal' },
+      { value: 'lt', label: 'less than' },
+      { value: 'leq', label: 'less than or equal' },
+    ];
+  }
+  if (field === 'path') {
+    return [
+      ...basic,
+      { value: 'like', label: 'matches pattern' },
+      { value: 'notLike', label: 'does not match pattern' },
+    ];
+  }
+  return basic;
+}

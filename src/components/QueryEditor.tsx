@@ -4,16 +4,19 @@ import { QueryEditorProps } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 import { Button, Combobox, Field, Input, TextArea, MultiCombobox, Tooltip, Icon } from '@grafana/ui';
 import { DataSource, zoneSelection } from '../datasource';
-import { CloudflareOptions, CloudflareQuery, DEFAULT_QUERY, DIMENSIONS, METRICS, Zone, QueryFilter } from '../types';
+import {
+  CloudflareOptions,
+  CloudflareQuery,
+  DEFAULT_QUERY,
+  DIMENSIONS,
+  METRICS,
+  Zone,
+  QueryFilter,
+  filterOperators,
+} from '../types';
 import { ZonePicker } from './ZonePicker';
 
 type Props = QueryEditorProps<DataSource, CloudflareQuery, CloudflareOptions>;
-const operators = [
-  { value: 'eq', label: 'equals' },
-  { value: 'neq', label: 'does not equal' },
-  { value: 'in', label: 'is one of' },
-  { value: 'notIn', label: 'is not one of' },
-];
 const layout = css`
   display: flex;
   flex-direction: column;
@@ -142,11 +145,20 @@ export function QueryEditor({ query, datasource, onChange, onRunQuery }: Props) 
       {q.filters.map((f, i) => (
         <div className="cf-filter" key={i}>
           <Field noMargin className="cf-medium" label={`Filter ${i + 1}`}>
-            <Combobox options={DIMENSIONS} value={f.field} onChange={(v) => updateFilter(i, { field: v.value })} />
+            <Combobox
+              options={DIMENSIONS}
+              value={f.field}
+              onChange={(v) =>
+                updateFilter(i, {
+                  field: v.value,
+                  operator: filterOperators(v.value).some((op) => op.value === f.operator) ? f.operator : 'eq',
+                })
+              }
+            />
           </Field>
           <Field noMargin className="cf-medium" label={`Operator ${i + 1}`}>
             <Combobox
-              options={operators}
+              options={filterOperators(f.field)}
               value={f.operator}
               onChange={(v) => updateFilter(i, { operator: v.value as QueryFilter['operator'] })}
             />
@@ -165,7 +177,11 @@ export function QueryEditor({ query, datasource, onChange, onRunQuery }: Props) 
               <Input
                 id={`cf-filter-${q.refId}-${i}`}
                 value={f.values.join('\n')}
-                placeholder="Value or $variable"
+                placeholder={
+                  f.operator === 'like' || f.operator === 'notLike'
+                    ? '/api/% (% matches any characters)'
+                    : 'Value or $variable'
+                }
                 onChange={(e) => updateFilter(i, { values: [e.currentTarget.value] }, false)}
                 onBlur={onRunQuery}
               />

@@ -4,6 +4,7 @@ package cloudflare
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,8 +12,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/grafana/grafana-plugin-sdk-go/build/buildinfo"
 )
 
 const APIURL = "https://api.cloudflare.com/client/v4"
@@ -25,15 +27,11 @@ type APIError struct {
 
 func (e *APIError) Error() string { return e.Message }
 
-type cacheEntry struct {
-	value   any
-	expires time.Time
-}
 type Client struct {
 	http           *http.Client
 	baseURL, token string
-	mu             sync.Mutex
-	cache          map[string]cacheEntry
+	cache          responseCache
+	userAgent      string
 	slots          chan struct{}
 }
 
@@ -43,9 +41,24 @@ func New(token string) *Client {
 	return newClient(token, APIURL, &http.Client{Timeout: 30 * time.Second, Transport: transport, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }})
 }
 func newClient(token, base string, h *http.Client) *Client {
-	return &Client{http: h, baseURL: base, token: token, cache: map[string]cacheEntry{}, slots: make(chan struct{}, 4)}
+	version := "dev"
+	if info, err := buildinfo.GetBuildInfo.GetInfo(); err == nil && info.Version != "" {
+		version = info.Version
+	}
+	return &Client{http: h, baseURL: base, token: token, userAgent: "cloudflare-analytics-grafana/" + version,
+		cache: responseCache{entries: map[string]cacheEntry{}, pending: map[string]*flight{}}, slots: make(chan struct{}, 4)}
 }
-func (c *Client) Close() { c.http.CloseIdleConnections() }
+func (c *Client) Close() {
+	c.cache.mu.Lock()
+	c.cache.closed = true
+	for _, f := range c.cache.pending {
+		f.cancel()
+	}
+	clear(c.cache.entries)
+	c.cache.bytes = 0
+	c.cache.mu.Unlock()
+	c.http.CloseIdleConnections()
+}
 func (c *Client) clean(s string) string {
 	if c.token != "" {
 		s = strings.ReplaceAll(s, c.token, "[REDACTED]")
@@ -84,7 +97,7 @@ func (c *Client) request(ctx context.Context, path string, payload any, out any)
 		}
 		req.Header.Set("Authorization", "Bearer "+c.token)
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "cloudflare-analytics-grafana/0.1")
+		req.Header.Set("User-Agent", c.userAgent)
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -175,24 +188,9 @@ type Zone struct {
 	Account Account `json:"account"`
 }
 
-// Metadata is cached per datasource (and therefore per token), never metric data.
-func (c *Client) metadata(ctx context.Context, key string, fetch func() (any, error)) (any, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if e, ok := c.cache[key]; ok && time.Now().Before(e.expires) {
-		return e.value, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	v, err := fetch()
-	if err == nil {
-		c.cache[key] = cacheEntry{v, time.Now().Add(5 * time.Minute)}
-	}
-	return v, err
-}
 func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
-	v, err := c.metadata(ctx, "zones", func() (any, error) {
+	var zones []Zone
+	_, err := c.cached(ctx, "zones", metadataTTL, func(ctx context.Context) (any, error) {
 		zones := []Zone{}
 		for page := 1; page <= 200; page++ {
 			var r struct {
@@ -214,11 +212,8 @@ func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
 			}
 		}
 		return nil, errors.New("zone discovery exceeded 10000 zones; use a token scoped to fewer zones")
-	})
-	if err != nil {
-		return nil, err
-	}
-	return v.([]Zone), nil
+	}, &zones)
+	return zones, err
 }
 func (c *Client) Accounts(ctx context.Context) ([]Account, error) {
 	zones, err := c.Zones(ctx)
@@ -246,7 +241,8 @@ type Settings struct {
 }
 
 func (c *Client) Settings(ctx context.Context, zone string) (Settings, error) {
-	v, err := c.metadata(ctx, "settings:"+zone, func() (any, error) {
+	var settings Settings
+	_, err := c.cached(ctx, "settings:"+zone, metadataTTL, func(ctx context.Context) (any, error) {
 		var r struct {
 			Viewer struct {
 				Zones []struct {
@@ -271,11 +267,8 @@ func (c *Client) Settings(ctx context.Context, zone string) (Settings, error) {
 			return nil, errors.New("Cloudflare returned invalid dataset limits")
 		}
 		return s, nil
-	})
-	if err != nil {
-		return Settings{}, err
-	}
-	return v.(Settings), nil
+	}, &settings)
+	return settings, err
 }
 func (s Settings) Has(field string) bool {
 	for _, f := range s.AvailableFields {
@@ -297,8 +290,9 @@ type Row struct {
 	Dimensions map[string]any `json:"dimensions"`
 }
 
-// fields and time dimension must come from the planner's allowlist, never raw user input.
-func (c *Client) Rows(ctx context.Context, zone string, filter map[string]any, dimensions []string, limit int, bytesMetric, sampling, ranked bool) ([]Row, error) {
+// Rows returns analytics rows and whether an identical request was cached or shared.
+// Fields and time dimension must come from the planner's allowlist, never raw user input.
+func (c *Client) Rows(ctx context.Context, zone string, filter map[string]any, dimensions []string, limit int, bytesMetric, sampling, ranked bool) ([]Row, bool, error) {
 	selection := "count"
 	if bytesMetric {
 		selection += " sum{edgeResponseBytes}"
@@ -317,18 +311,28 @@ func (c *Client) Rows(ctx context.Context, zone string, filter map[string]any, d
 		}
 	}
 	q := `query($zone:string!,$filter:ZoneHttpRequestsAdaptiveGroupsFilter_InputObject!,$limit:uint64!){viewer{zones(filter:{zoneTag:$zone}){rows:httpRequestsAdaptiveGroups(limit:$limit,filter:$filter` + order + `){` + selection + `}}}}`
-	var r struct {
-		Viewer struct {
-			Zones []struct {
-				Rows []Row `json:"rows"`
-			} `json:"zones"`
-		} `json:"viewer"`
+	variables := map[string]any{"zone": zone, "filter": filter, "limit": limit}
+	encoded, err := json.Marshal(map[string]any{"query": q, "variables": variables})
+	if err != nil {
+		return nil, false, err
 	}
-	if err := c.graphql(ctx, q, map[string]any{"zone": zone, "filter": filter, "limit": limit}, &r); err != nil {
-		return nil, err
-	}
-	if len(r.Viewer.Zones) != 1 {
-		return nil, errors.New("zone was not found or is outside the token's scope")
-	}
-	return r.Viewer.Zones[0].Rows, nil
+	key := fmt.Sprintf("rows:%x", sha256.Sum256(encoded))
+	var rows []Row
+	reused, err := c.cached(ctx, key, resultTTL, func(ctx context.Context) (any, error) {
+		var r struct {
+			Viewer struct {
+				Zones []struct {
+					Rows []Row `json:"rows"`
+				} `json:"zones"`
+			} `json:"viewer"`
+		}
+		if err := c.graphql(ctx, q, variables, &r); err != nil {
+			return nil, err
+		}
+		if len(r.Viewer.Zones) != 1 {
+			return nil, errors.New("zone was not found or is outside the token's scope")
+		}
+		return r.Viewer.Zones[0].Rows, nil
+	}, &rows)
+	return rows, reused, err
 }
