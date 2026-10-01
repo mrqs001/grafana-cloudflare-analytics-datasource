@@ -12,24 +12,55 @@ origin requests**.
 Requires Grafana **13.2.3+**. Apache-2.0 licensed. Independent community project,
 not affiliated with Cloudflare or Grafana Labs.
 
+## Install in an existing Grafana
+
+1. Download the ZIP from the [latest release](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/releases/latest). Unzip its single
+   `mrqs001-cloudflareanalytics-datasource/` directory into Grafana's plugin directory.
+2. For this unsigned community build, explicitly allow
+   `mrqs001-cloudflareanalytics-datasource` in
+   `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` (or the corresponding Grafana setting).
+3. Restart Grafana. Add a datasource named **Cloudflare Analytics**, set its API
+   token under the password field and click **Save & test**. Then choose one, several,
+   or **All zones** under **Default zones**, and save again. The saved token is not
+   returned to the browser.
+4. Import the dashboards from the datasource's Dashboards tab or `src/dashboards/`.
+   Choose your Cloudflare datasource and zone.
+
+Do not enable general development mode in production. Catalog signing is a
+separate step; see [publishing](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/publishing.md). Backend binaries are needed
+for your Grafana server's OS/architecture, not your browser's platform.
+
+Provisioning example (supply the variable through your secret manager):
+
+```yaml
+apiVersion: 1
+datasources:
+  - name: Cloudflare Analytics
+    uid: cloudflare-analytics
+    type: mrqs001-cloudflareanalytics-datasource
+    access: proxy
+    jsonData:
+      defaultZoneMode: selected # or all to discover every accessible zone
+      defaultZoneIds: ['<zone-id>', '<another-zone-id>']
+    secureJsonData:
+      apiToken: $CF_API_TOKEN
+```
+
+![Secure configuration and successful Cloudflare health check](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/configuration.png)
+
 ## Example dashboards
 
 Two importable dashboards are included. Choose your Cloudflare datasource and
 one, several, or all zones after importing:
 
 - [HTTP traffic overview](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/src/dashboards/overview.json): request volume, bandwidth, status codes, cache status, top hosts, colos, and paths.
-- [Edge vs origin comparison](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/src/dashboards/origin-comparison.json): compare Cloudflare traffic with your own Nginx query from Prometheus or Loki in the mixed-datasource panel.
+- [Edge vs origin comparison](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/src/dashboards/origin-comparison.json): compare Cloudflare traffic with your existing origin datasource (optional setup).
 
-**The previews below use entirely synthetic traffic and fictional domains.**
-Nginx is simulated for illustration; this plugin does not collect Nginx metrics.
-No real zone names, account details, or credentials appear in these images.
+_Previews use simulated traffic and fictional domains._
 
 ![HTTP overview with synthetic traffic for shop.example.com and api.example.com](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/overview-demo.jpg)
 
 ![Simulated Cloudflare edge and Nginx origin traffic comparison](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/origin-comparison-demo.jpg)
-
-To reproduce the previews without a Cloudflare token, see the
-[isolated screenshot demo](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/screenshots.md).
 
 ## Try it locally
 
@@ -70,42 +101,6 @@ Without Zone Read, enter zone IDs under **Default zones** in datasource settings
 in queries; `zones()` and `accounts()` discovery will be unavailable. The token
 must still have access to that zone's Analytics dataset. Both account-owned and
 user-owned tokens are supported without relying on a user-token verification API.
-
-## Install in an existing Grafana
-
-1. Build or download a release ZIP. Unzip its single
-   `mrqs001-cloudflareanalytics-datasource/` directory into Grafana's plugin directory.
-2. For this unsigned community build, explicitly allow
-   `mrqs001-cloudflareanalytics-datasource` in
-   `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` (or the corresponding Grafana setting).
-3. Restart Grafana. Add a datasource named **Cloudflare Analytics**, set its API
-   token under the password field and click **Save & test**. Then choose one, several,
-   or **All zones** under **Default zones**, and save again. The saved token is not
-   returned to the browser.
-4. Import the dashboards from the datasource's Dashboards tab or `src/dashboards/`.
-   Choose your Cloudflare datasource and zone.
-
-Do not enable general development mode in production. Catalog signing is a
-separate step; see [publishing](https://github.com/mrqs001/grafana-cloudflare-analytics-datasource/blob/main/docs/publishing.md). Backend binaries are needed
-for your Grafana server's OS/architecture, not your browser's platform.
-
-Provisioning example (supply the variable through your secret manager):
-
-```yaml
-apiVersion: 1
-datasources:
-  - name: Cloudflare Analytics
-    uid: cloudflare-analytics
-    type: mrqs001-cloudflareanalytics-datasource
-    access: proxy
-    jsonData:
-      defaultZoneMode: selected # or all to discover every accessible zone
-      defaultZoneIds: ['<zone-id>', '<another-zone-id>']
-    secureJsonData:
-      apiToken: $CF_API_TOKEN
-```
-
-![Secure configuration and successful Cloudflare health check](https://raw.githubusercontent.com/mrqs001/grafana-cloudflare-analytics-datasource/main/src/img/configuration.png)
 
 ## Updating the plugin
 
