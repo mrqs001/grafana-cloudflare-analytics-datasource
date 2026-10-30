@@ -231,11 +231,11 @@ request counter. Match population, buckets, timestamps and units before comparin
 
 ## Development and validation
 
-Use Node 24 LTS, Go 1.26.5+, Docker, and Mage:
+Use Node 24 LTS (see `.nvmrc`), npm 12.2.1, Go 1.27.3+, Docker, and Mage:
 
 ```sh
 npm ci
-go install github.com/magefile/mage@v1.15.0
+go install github.com/magefile/mage@v1.17.2
 npm run typecheck
 npm run lint
 npm run test:ci

@@ -18,7 +18,7 @@ plugin ID, so a post-release rename is a migration, not a cosmetic change.
 ## Reproducible build and archive
 
 The npm lockfile and Go checksums pin dependencies. Use Node 24, the Go version
-from `go.mod`, and Mage 1.15.0. Builds include SDK build timestamp metadata, so
+from `go.mod`, and Mage 1.17.2. Builds include SDK build timestamp metadata, so
 archives are repeatable from pinned source but are not byte-identical by default.
 
 ```sh
@@ -40,7 +40,7 @@ Run the official validator on the archive:
 
 ```sh
 npx --yes @grafana/plugin-validator@latest -jsonOutput \
-  artifacts/mrqs001-cloudflareanalytics-datasource-0.1.0.zip
+  artifacts/mrqs001-cloudflareanalytics-datasource-0.3.1.zip
 ```
 
 Local unsigned builds can report signature/catalog-related checks. Those are
@@ -59,7 +59,7 @@ CI additionally validates metadata and archives build outputs.
    approved publisher slug.
 4. After approval, add `GRAFANA_ACCESS_POLICY_TOKEN` as a GitHub Actions secret.
    This is a Grafana signing credential, **never the Cloudflare API token**.
-5. Push a version tag (`v0.1.0` for this version). The release workflow builds,
+5. Push a version tag (`v0.3.1` for this version). The release workflow builds,
    optionally signs, packages, and creates a **draft** GitHub release. Inspect it
    before publishing. Without a signing token it is explicitly unsigned.
 6. Submit the signed archive and checksum to Grafana's catalog process. Confirm

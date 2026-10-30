@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 (2026-10-30)
+
+- Update Grafana frontend libraries to 13.3.0 and the Go SDK to 0.298.0.
+- Refresh build, test, signing, and transitive dependencies; use Node 24.22.2,
+  Go 1.27.3, and current GitHub Actions.
+- Test both Grafana 13.2.3 and 13.3.0; the minimum supported version is unchanged.
+- Keep compatible ESLint 9, Grafana lint-config 9, and TypeScript 6 versions
+  while their current integration dependencies require them.
+
 ## 0.3.0 (2026-10-01)
 
 - Add status range filters and URI path patterns; accept literal dollar signs in paths.

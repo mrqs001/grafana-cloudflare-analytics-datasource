@@ -11,23 +11,25 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Match tag to package version
         run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
+      - name: Use pinned npm
+        run: npm install --global npm@12.2.1 --ignore-scripts
       - run: npm ci
       - run: npm run typecheck && npm run lint && npm run test:ci
       - run: go test -race ./pkg/... && go vet ./pkg/...
       - run: npm run build
-      - run: go install github.com/magefile/mage@v1.15.0
+      - run: go install github.com/magefile/mage@v1.17.2
       - run: mage -v buildAll
       - name: Sign when an approved publisher credential is configured
         env:
