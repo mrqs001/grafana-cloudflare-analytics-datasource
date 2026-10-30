@@ -47,14 +47,41 @@ invalid-token behavior was tested live. No production Cloudflare writes occurred
 No real Nginx datasource was supplied, so the Mixed panel is a documented template;
 end-to-end origin reconciliation remains a deployment-specific validation.
 
+## 0.3.1 maintenance validation (2026-10-30)
+
+- Clean npm install, TypeScript, ESLint, six frontend tests, 25 Go race tests and vet pass.
+- Eight credential-free browser checks pass on each of Grafana 13.2.3 and 13.3.0;
+  the three opt-in live specs are skipped. This update does not claim a new live API run.
+- All six backend targets build, the Docker build passes, and `govulncheck` reports
+  no vulnerabilities in the Go packages.
+- The full official validator completes 40 analyzers without failure, reports two
+  existing warnings (unsigned plugin and unregistered publisher), and one organization
+  scan error because `mrqs001` is not a registered Grafana Cloud publisher.
+  Catalog signing remains a separate prerequisite; metadata checks still pass.
+
 ## Dependency audit
 
-The scaffold's high-severity frontend dependency findings were removed by moving
-to Grafana 13.2.3/React 19. npm still reports moderate React Router advisories in
-Grafana UI's compatibility dependencies. The plugin does not bundle React Router
+The 2026-10-30 dependency refresh uses Grafana 13.3.0/React 19.3.1. The npm audit
+reports no high or critical findings. Remaining findings are moderate React Router
+advisories in Grafana UI's compatibility dependencies and a low-severity deepmerge
+advisory in build/test tools. No patched deepmerge release is available. The plugin does not bundle React Router
 or perform SSR hydration; Grafana provides UI/runtime dependencies. Do not force
 a router-major override that breaks Grafana's peer API. Keep the host patched and
 review `npm audit` before releases. Current audit findings are not silently waived.
+
+Compatibility constraints retained during the update:
+
+- ESLint 9: `eslint-plugin-react@7.37.5` does not support ESLint 10.
+- Grafana lint-config 9: the managed scaffold imports `@grafana/eslint-config/flat.js`,
+  which v10 no longer exports. The protected `.config` directory is unchanged.
+- TypeScript 6.0.3: the existing ts-node/type-checker tooling uses the JavaScript
+  compiler API; TypeScript 7's native distribution is not a drop-in replacement.
+- `@types/node` follows the Node 24 build runtime; prerelease integrity-plugin
+  versions are not used in production builds.
+
+CI exercises both the minimum Grafana 13.2.3 and current Grafana 13.3.0. The default
+Docker development image uses 13.3.0. For an existing 13.2.3 instance, installing this
+plugin update does not require a Grafana upgrade.
 
 ## Re-run
 
