@@ -41,7 +41,7 @@ jobs:
         run: npx --yes @grafana/plugin-validator@latest -analyzer=metadatavalid artifacts/*.zip
       - name: Start disposable Grafana without Cloudflare credentials
         run: docker compose -f docker-compose.yaml -f compose.dev.yaml up -d --wait
-      - run: npm exec playwright install chromium --with-deps
+      - run: npm exec -- playwright install chromium --with-deps
       - run: npm run e2e -- --reporter=list
       - name: Stop Grafana
         if: always()
