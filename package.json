@@ -17,7 +17,7 @@
   "author": "Mrqs001",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@grafana/eslint-config": "^9.0.0",
+    "@grafana/eslint-config": "^10.0.0",
     "@grafana/plugin-e2e": "^3.15.4",
     "@grafana/sign-plugin": "^4.0.0",
     "@grafana/tsconfig": "^2.2.0",
@@ -35,7 +35,7 @@
     "@typescript-eslint/parser": "^8.72.1",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.5",
-    "eslint": "^9.39.5",
+    "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^65.4.2",
     "eslint-plugin-react": "^7.37.5",
